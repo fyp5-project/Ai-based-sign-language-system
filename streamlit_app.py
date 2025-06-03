@@ -3,13 +3,13 @@
 import streamlit as st
 import requests
 import os
-import traceback 
-# from st_audiorec import st_audiorec # Removed
-import io 
+import io
+from PIL import Image, UnidentifiedImageError
+from typing import Optional
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
-st.set_page_config(layout="wide", page_title="Sign Language Translator")
+st.set_page_config(layout="centered", page_title="Sign Language Translator")
 
 st.markdown("""
 <style>
@@ -40,130 +40,134 @@ st.markdown("---")
 
 tab_sign_to_text, tab_text_to_sign = st.tabs([
     "🖼️ Sign Image → Spoken Swahili",
-    "📜 Text → Sign Video" # Simplified tab title
+    "📜 Text → Sign Video"
 ])
 
 # --- Tab 1: Sign Image to Text/Speech ---
 with tab_sign_to_text:
     st.header("Translate a Sign Gesture")
+    st.write("Upload an image or take a photo of a sign gesture to translate it into spoken Swahili.")
     
-    input_method_img = st.radio(
-        "Image input method:", # Simplified label
-        ("Upload Image", "Take Photo with Webcam"),
-        key="img_input_method_v10",
-        horizontal=True
+    input_method = st.selectbox(
+        "Choose input method:", 
+        ["📤 Upload Image", "📸 Take Photo"], 
+        key="img_input_method_v18"
     )
+    
+    image_for_display: Optional[object] = None
+    image_bytes_for_api: Optional[bytes] = None
+    image_filename_for_api: str = "webcam_photo.jpg"
+    image_mimetype_for_api: str = "image/jpeg"
 
-    image_file_buffer = None
-    image_filename = "webcam_photo.jpg"
-
-    if input_method_img == "Upload Image":
+    if "Upload Image" in input_method:
         uploaded_image_file = st.file_uploader(
-            "Select an image file", # Simplified label
-            type=["png", "jpg", "jpeg"],
-            key="sign_image_uploader_v10",
-            label_visibility="collapsed"
+            "Upload an image", 
+            type=["png", "jpg", "jpeg"], 
+            key="sign_image_uploader_v18"
         )
         if uploaded_image_file:
-            image_file_buffer = uploaded_image_file
-            image_filename = uploaded_image_file.name
-            
-    elif input_method_img == "Take Photo with Webcam":
+            try:
+                pil_image = Image.open(uploaded_image_file)
+                if pil_image.mode == 'RGBA':
+                    pil_image = pil_image.convert('RGB')
+                output_bytes_io = io.BytesIO()
+                pil_image.save(output_bytes_io, format="JPEG")
+                output_bytes_io.seek(0)
+                image_for_display = output_bytes_io
+                image_bytes_for_api = output_bytes_io.getvalue()
+                image_filename_for_api = "uploaded_image.jpg"
+                image_mimetype_for_api = "image/jpeg"
+            except UnidentifiedImageError:
+                st.error("Invalid image file. Please upload a valid PNG, JPG, or JPEG image.")
+            except Exception as e:
+                st.error(f"Error processing image: {e}")
+    else:
         camera_photo_buffer = st.camera_input(
-            "Point at a sign and click 'Take Photo'", # Simplified label
-            key="sign_camera_input_v10"
+            "Take a photo", 
+            key="sign_camera_input_v18"
         )
         if camera_photo_buffer:
-            image_file_buffer = camera_photo_buffer
+            try:
+                pil_image = Image.open(camera_photo_buffer)
+                if pil_image.mode == 'RGBA':
+                    pil_image = pil_image.convert('RGB')
+                output_bytes_io = io.BytesIO()
+                pil_image.save(output_bytes_io, format="JPEG")
+                output_bytes_io.seek(0)
+                image_for_display = output_bytes_io
+                image_bytes_for_api = output_bytes_io.getvalue()
+            except UnidentifiedImageError:
+                st.error("Could not process webcam image. Please try again.")
+            except Exception as e:
+                st.error(f"Error processing image: {e}")
     
-    if image_file_buffer:
-        col1_img_disp, col2_img_res_disp = st.columns([1, 2])
-        with col1_img_disp:
-            st.image(image_file_buffer, caption="Your Sign Image", use_container_width=True)
-        
-        with col2_img_res_disp:
-            if st.button("Translate this Sign", key="translate_sign_btn_v10", type="primary"):
+    if image_for_display:
+        st.image(image_for_display, caption="Your Sign Image", width=400)
+        if st.button("Translate this Sign", key="translate_sign_btn_v18", type="primary"):
+            if image_bytes_for_api:
                 with st.spinner("Analyzing sign..."):
-                    files = {"file": (image_filename, image_file_buffer.getvalue(), image_file_buffer.type if hasattr(image_file_buffer, 'type') else 'image/jpeg')}
+                    files = {"file": (image_filename_for_api, image_bytes_for_api, image_mimetype_for_api)}
                     try:
                         response = requests.post(f"{BACKEND_URL}/sign-to-text", files=files, timeout=45)
                         if response.status_code == 200:
                             result = response.json()
-                            st.subheader("Translation:")
-                            predicted_english = result['predicted_english_text']
-                            confidence = result.get('prediction_confidence', 0.0)
-                            
-                            st.markdown(f"**Interpretation (English):** `{predicted_english}`")
-                            st.markdown(f"**Confidence:** `{confidence*100:.1f}%`")
-                            st.markdown(f"**Swahili (Spoken):** `{result['translated_swahili_text']}`")
-                            
+                            st.subheader("Translation Results")
+                            st.write(f"**English:** {result['predicted_english_text']}")
+                            st.write(f"**Confidence:** {result.get('prediction_confidence', 0.0)*100:.1f}%")
+                            st.write(f"**Swahili:** {result['translated_swahili_text']}")
                             if result.get('swahili_audio_url'):
                                 audio_full_url = f"{BACKEND_URL.rstrip('/')}{result['swahili_audio_url']}"
                                 st.audio(audio_full_url, format='audio/mp3')
-                            else: st.warning("Audio could not be generated.")
+                            else:
+                                st.warning("Audio unavailable.")
                         else:
-                            err_msg = response.json().get("message", f"Error {response.status_code}")
-                            st.error(f"Translation failed: {err_msg}")
-                    except requests.exceptions.RequestException as e:
-                        st.error(f"Connection Error. Is the backend server running at {BACKEND_URL}? Details: {e}")
-                    except Exception as e: 
-                        st.error(f"An unexpected error occurred: {e}")
+                            st.error("Translation failed.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            else:
+                st.warning("No image data available for translation.")
     else:
-        st.info("Please upload an image or take a photo to begin.")
-
+        st.info("Please provide an image to begin.")
 
 # --- Tab 2: Text to Sign Video ---
 with tab_text_to_sign:
-    st.header("Generate Sign Language Video from Text")
-
-    # Simplified to only text input
-    col_lang_text, col_text_input = st.columns([1, 3])
-    with col_lang_text:
-        source_language_display_text = st.selectbox("Input Language:", ("English", "Swahili"), key="text_input_lang_select_v10")
-    selected_language_code = 'sw' if source_language_display_text == "Swahili" else 'en'
+    st.header("Generate Sign Language Video")
+    st.write("Enter text in English or Swahili to generate a corresponding sign language video.")
     
-    with col_text_input:
-        typed_text = st.text_area(f"Enter {source_language_display_text} text:", height=100, key="text_to_sign_input_v10", placeholder=f"e.g., 'I love you' or 'Nakupenda'")
+    source_language = st.selectbox(
+        "Input Language:", 
+        ("English", "Swahili"), 
+        key="text_input_lang_select_v18"
+    )
+    typed_text = st.text_area(
+        "Enter text:", 
+        height=100, 
+        key="text_to_sign_input_v18", 
+        placeholder="e.g., 'I love you' or 'Nakupenda'"
+    )
     
-    final_text_to_translate = typed_text # Directly use typed_text
-
-    if st.button("Generate Sign Video", key="find_combined_video_btn_v10", type="primary"):
-        if final_text_to_translate and final_text_to_translate.strip():
-            with st.spinner(f"Generating video for '{final_text_to_translate}'..."):
-                payload = {"text": final_text_to_translate.strip(), "source_language": selected_language_code} 
+    if st.button("Generate Video", key="find_combined_video_btn_v18", type="primary"):
+        if typed_text.strip():
+            with st.spinner("Generating video..."):
+                payload = {
+                    "text": typed_text.strip(), 
+                    "source_language": 'sw' if source_language == "Swahili" else 'en'
+                }
                 try:
-                    response = requests.post(f"{BACKEND_URL}/text-to-sign", json=payload, timeout=90) 
+                    response = requests.post(f"{BACKEND_URL}/text-to-sign", json=payload, timeout=90)
                     if response.status_code == 200:
                         result = response.json()
-                        
                         if result.get('combined_video_url'):
-                            st.success(f"Video generated for: '{result['input_text']}'")
-                            video_relative_url = result['combined_video_url']
-                            display_video_url = f"{BACKEND_URL.rstrip('/')}{video_relative_url}"
-                            download_url = f"{BACKEND_URL.rstrip('/')}/download-video{video_relative_url.replace('/static/combined_temp/', '/')}"
-                            
-                            video_format = "video/x-msvideo" 
-                            if video_relative_url.lower().endswith(".mp4"): video_format = "video/mp4"
-                            
-                            st.video(display_video_url, format=video_format)
-                            video_filename = os.path.basename(video_relative_url)
-                            st.markdown(f"<small>If playback issues, <a href='{download_url}' download='{video_filename}'>download video ({video_filename})</a>.</small>", unsafe_allow_html=True)
+                            video_url = f"{BACKEND_URL.rstrip('/')}{result['combined_video_url']}"
+                            st.video(video_url, format="video/mp4")
                         else:
-                            st.warning(result.get("message", "Could not generate video."))
+                            st.warning("Could not generate video.")
                     else:
-                        err_msg = response.json().get("message", f"Error {response.status_code}")
-                        st.error(f"Video generation failed: {err_msg}")
-                except requests.exceptions.Timeout:
-                    st.error("Video generation timed out.")
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Connection Error. Is backend at {BACKEND_URL} running? Details: {e}")
-                except Exception as e: 
-                    st.error(f"An unexpected error occurred in Streamlit: {e}")
-        else: 
-            st.warning("Please enter some text to translate.")
-    else: 
-        st.info("Enter text to generate a sign video.")
+                        st.error("Video generation failed.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        else:
+            st.warning("Please enter text to generate a video.")
 
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: grey;'>AI-Powered Sign Language Translation © 2024</div>", unsafe_allow_html=True)
-
