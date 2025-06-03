@@ -1,0 +1,24 @@
+fastapi
+uvicorn[standard]
+streamlit
+requests
+tensorflow
+tf-keras
+gtts
+python-multipart
+opencv-python
+numpy
+pandas
+sentence-transformers
+faiss-cpu
+python-Levenshtein
+googletrans==4.0.0-rc1
+httpx==0.13.3
+torch
+torchvision
+torchaudio
+# PyAudio might be needed by SpeechRecognition for microphone input,
+# but for file input it's often not strictly necessary.
+# If you encounter issues with sr.AudioFile, you might need:
+# PyAudio # (Can be tricky to install on some systems, may need system deps like portaudio)
+# For WAV file processing with sr.AudioFile, ensure ffmpeg is installed on your system if not already.

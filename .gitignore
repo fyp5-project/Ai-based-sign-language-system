@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.env
+*.env
+env/
+venv/
+ENV/
+lib/
+lib64/
+include/
+share/
+pip-log.txt
+pip-delete-this-directory.txt
+.Python
+celerybeat-schedule
+celerybeat.pid
+*.so
+*.DS_Store
+*.ipynb_checkpoints
+
+# TensorFlow / Keras / Models - if you don't want to LFS them
+# but you DO want to LFS your actual model files, so these might be too broad.
+# models/best_model.h5 # Example if you had an H5, LFS will handle .keras directory parts
+
+# Data - if not using LFS for videos or CSVs
+# data/videos/
+# data/*.csv
+
+# Static generated files (LFS might be better for large combined videos if they persist)
+static/combined_temp/
+static/*.mp3
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Conda environments (if created inside project, though usually outside)
+ai-env/ 
