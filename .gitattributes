@@ -1,6 +1,15 @@
-*.MOV filter=lfs diff=lfs merge=lfs -text
-*.mp4 filter=lfs diff=lfs merge=lfs -text
-models/best_model.keras/model.weights.h5 filter=lfs diff=lfs merge=lfs -text
-data/images/*.jpg filter=lfs diff=lfs merge=lfs -text
+# Videos
+data/videos/*.MOV filter=lfs diff=lfs merge=lfs -text
+data/videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
 data/videos_converted_h264/*.mp4 filter=lfs diff=lfs merge=lfs -text
+static/combined_temp/*.mp4 filter=lfs diff=lfs merge=lfs -text
+static/combined_temp/*.avi filter=lfs diff=lfs merge=lfs -text
+
+# Keras Model Weights (and other large parts of the .keras directory)
+models/best_model.keras/model.weights.h5 filter=lfs diff=lfs merge=lfs -text
+models/best_model.keras/assets/** filter=lfs diff=lfs merge=lfs -text
+models/best_model.keras/variables/variables.* filter=lfs diff=lfs merge=lfs -text
+# Large Images
+data/images/*.jpg filter=lfs diff=lfs merge=lfs -text
+data/images/*.png filter=lfs diff=lfs merge=lfs -text
 data/videos filter=lfs diff=lfs merge=lfs -text
