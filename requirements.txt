@@ -17,6 +17,10 @@ httpx==0.13.3
 torch
 torchvision
 torchaudio
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
 # PyAudio might be needed by SpeechRecognition for microphone input,
 # but for file input it's often not strictly necessary.
 # If you encounter issues with sr.AudioFile, you might need:
